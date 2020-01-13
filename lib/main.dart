@@ -68,19 +68,47 @@ class _MyHomePageState extends State<MyHomePage> {
     sendPort.send([rp.sendPort]);
     int val = 0;
     bool flag = false;
+    bool upflag = false;
+    bool flag2 = false;
     rp.listen((var message) {
       print(message);
     });
     userAccelerometerEvents.listen((UserAccelerometerEvent event) {
+      print('${event.x.round()}, ${event.y.round()}, ${event.z.round()}');
       int yVal = event.y.round();
       if (yVal <= -5) {
-        val = event.y.round();
+        val = yVal;
         flag = true;
+        new Future.delayed(Duration(milliseconds: 1000), () {
+          flag = false;
+        });
       }
       if (flag) {
         if (yVal >= (val + 2).abs()) {
-          print('going down');
+          //print('going down');
           flag = false;
+          upflag = true;
+          new Future.delayed(Duration(milliseconds: 1500), () {
+            upflag = false;
+          });
+        }
+      }
+
+      if (upflag) {
+        int yVal2 = event.y.round();
+        if (yVal2 >= 5) {
+          val = yVal2;
+          flag2 = true;
+          new Future.delayed(Duration(milliseconds: 1000), () {
+            flag2 = false;
+          });
+        }
+        if (flag2) {
+          if (yVal2 <= (val - 2) * -1) {
+            print('pothole detected');
+            flag2 = false;
+            upflag = false;
+          }
         }
       }
     });
