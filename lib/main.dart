@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:isolate';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sensors/sensors.dart';
 
 void main() => runApp(MyApp());
@@ -49,42 +50,45 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
+  AccelerometerEvent accel = AccelerometerEvent(0, 0, 0);
   Isolate isolate;
   static counter(SendPort sendPort) async {
     ReceivePort receivePort = ReceivePort();
     sendPort.send(receivePort.sendPort);
+
     var msg = await receivePort.first;
-    SendPort replyPort = msg[1];
-    int n = msg[0];
-
-    Timer.periodic(Duration(seconds: 1), (Timer timer) {
-      ++n;
-
-      replyPort.send(n);
-    });
+    SendPort replyPort = msg[0];
   }
 
   void _count() async {
     ReceivePort receivePort = ReceivePort();
     isolate = await Isolate.spawn(counter, receivePort.sendPort);
     SendPort sendPort = await receivePort.first;
-    ReceivePort rp = _getCounterValue(sendPort);
+    ReceivePort rp = ReceivePort();
+    sendPort.send([rp.sendPort]);
+    int val = 0;
+    bool flag = false;
     rp.listen((var message) {
-      setState(() {
-        _counter = message;
-      });
+      print(message);
+    });
+    userAccelerometerEvents.listen((UserAccelerometerEvent event) {
+      int yVal = event.y.round();
+      if (yVal <= -5) {
+        val = event.y.round();
+        flag = true;
+      }
+      if (flag) {
+        if (yVal >= (val + 2).abs()) {
+          print('going down');
+          flag = false;
+        }
+      }
     });
   }
 
   void _stopCount() {
     isolate?.kill(priority: Isolate.immediate);
     isolate = null;
-  }
-
-  ReceivePort _getCounterValue(SendPort send) {
-    ReceivePort receivePort = ReceivePort();
-    send.send([_counter, receivePort.sendPort]);
-    return receivePort;
   }
 
   @override
@@ -122,7 +126,7 @@ class _MyHomePageState extends State<MyHomePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             Text(
-              'Seconds active for',
+              'X: ${accel.x}, Y: ${accel.y}, Z: ${accel.z}',
             ),
             Text(
               '$_counter',
